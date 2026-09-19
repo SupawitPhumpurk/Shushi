@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D GLB Viewer</title>
+    <title>3D GLB Viewer - Shushi</title>
     <style>
         body {
             margin: 0;
@@ -12,23 +12,23 @@
             font-family: sans-serif;
         }
 
-        /* กล่องใส่ลิงก์ GitHub */
+        /* กล่องใส่ลิงก์ GitHub / Website */
         #input-container {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 100;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             padding: 12px 16px;
             border-radius: 10px;
             display: flex;
             gap: 10px;
             align-items: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         }
 
         #github-url-input {
-            width: 350px;
+            width: 380px;
             padding: 8px 12px;
             border: 1px solid #555;
             border-radius: 6px;
@@ -63,7 +63,7 @@
             left: 20px;
             z-index: 100;
             color: #fff;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             padding: 6px 12px;
             border-radius: 4px;
             font-size: 13px;
@@ -73,11 +73,11 @@
 
 <body>
 
-    <!-- ช่องสำหรับกรอกลิงก์ GitHub -->
+    <!-- ช่องสำหรับกรอกลิงก์ -->
     <div id="input-container">
         <input type="text" id="github-url-input" 
-               placeholder="วางลิงก์ไฟล์ .glb บน GitHub ตรงนี้..." 
-               value="https://raw.githubusercontent.com/SupawitPhumpurk/pbrOWL/main/MYOWL.glb">
+               placeholder="วางลิงก์ .glb หรือ ลิงก์ GitHub Pages..." 
+               value="https://supawitphumpurk.github.io/Shushi/Shushi.glb">
         <button id="load-btn">โหลดโมเดล</button>
     </div>
 
@@ -170,7 +170,7 @@
         plane.receiveShadow = true;
         scene.add(plane);
 
-        // 5. โหลดโมเดลผ่าน GLTFLoader + Draco
+        // 5. โหลดโมเดล
         let currentModel = null;
         let charFolder = null;
 
@@ -181,18 +181,23 @@
 
         const status = document.getElementById('status');
 
-        // ฟังก์ชันแปลงลิงก์ GitHub ธรรมดาให้เป็น Raw Link อัตโนมัติ
-        function getRawUrl(url) {
+        // ฟังก์ชันแปลง URL จาก GitHub ให้ชี้ไปที่ไฟล์ .glb โดยอัตโนมัติ
+        function fixGlbUrl(url) {
             let cleanUrl = url.trim();
+            // หากวางลิงก์ GitHub ธรรมดามา ให้แปลงเป็น Raw URL
             if (cleanUrl.includes('github.com') && !cleanUrl.includes('raw.githubusercontent.com')) {
                 cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+            }
+            // หากใส่มาแค่ลิงก์เว็บหลัก https://supawitphumpurk.github.io/Shushi/ ให้เติม /Shushi.glb ให้อัตโนมัติ
+            if (cleanUrl.endsWith('/Shushi/') || cleanUrl.endsWith('/Shushi')) {
+                cleanUrl = 'https://supawitphumpurk.github.io/Shushi/Shushi.glb';
             }
             return cleanUrl;
         }
 
         function setupGUI(model) {
             if (charFolder) charFolder.destroy();
-            charFolder = gui.addFolder('Character Material');
+            charFolder = gui.addFolder('Model Material');
 
             const materials = [];
             model.traverse((child) => {
@@ -224,12 +229,11 @@
         function loadModel(url) {
             status.innerText = "กำลังโหลดโมเดล...";
             
-            // ลบโมเดลเก่าออกจากฉากก่อน
             if (currentModel) scene.remove(currentModel);
 
-            const rawUrl = getRawUrl(url);
+            const targetUrl = fixGlbUrl(url);
 
-            loader.load(rawUrl, (gltf) => {
+            loader.load(targetUrl, (gltf) => {
                 currentModel = gltf.scene;
                 currentModel.traverse((child) => {
                     if (child.isMesh) {
@@ -238,7 +242,7 @@
                     }
                 });
 
-                // ตั้งค่าให้อยู่บนพื้นพอดี
+                // จัดตำแหน่งให้อยู่กลางพื้นพอดี
                 const box = new THREE.Box3().setFromObject(currentModel);
                 currentModel.position.set(0, -box.min.y, 0);
 
@@ -251,7 +255,7 @@
                 }
             }, (error) => {
                 console.error(error);
-                status.innerText = "เกิดข้อผิดพลาดในการโหลดโมเดล";
+                status.innerText = "เกิดข้อผิดพลาดในการโหลดโมเดล (ตรวจสอบลิงก์อีกครั้ง)";
             });
         }
 
@@ -261,7 +265,7 @@
             if (url) loadModel(url);
         });
 
-        // โหลดโมเดลเริ่มต้น
+        // โหลดโมเดล Shushi.glb เป็นค่าเริ่มต้นทันที
         loadModel(document.getElementById('github-url-input').value);
 
         // 6. Loop Render
