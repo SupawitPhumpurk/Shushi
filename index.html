@@ -1,132 +1,283 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Model Viewer - Three.js</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background-color: #1a1a1a;
-    }
-    #canvas-container {
-      width: 100vw;
-      height: 100vh;
-    }
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-family: sans-serif;
-      font-size: 18px;
-      pointer-events: none;
-    }
-  </style>
-  
-  <!-- นำเข้า Import Map สำหรับจัดการ Three.js โมดูล -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D GLB Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        /* กล่องใส่ลิงก์ GitHub */
+        #input-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #github-url-input {
+            width: 350px;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            background: #222;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #github-url-input:focus {
+            border-color: #007bff;
+        }
+
+        #load-btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #load-btn:hover {
+            background: #0056b3;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+    </style>
 </head>
+
 <body>
 
-  <div id="loading">กำลังโหลดโมเดล 3D...</div>
-  <div id="canvas-container"></div>
+    <!-- ช่องสำหรับกรอกลิงก์ GitHub -->
+    <div id="input-container">
+        <input type="text" id="github-url-input" 
+               placeholder="วางลิงก์ไฟล์ .glb บน GitHub ตรงนี้..." 
+               value="https://raw.githubusercontent.com/SupawitPhumpurk/pbrOWL/main/MYOWL.glb">
+        <button id="load-btn">โหลดโมเดล</button>
+    </div>
 
-  <script type="module">
-    import * as THREE from 'three';
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    <div id="status">พร้อมใช้งาน</div>
 
-    // 1. สร้าง Scene, Camera และ Renderer
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222); // สีพื้นหลัง
+    <!-- Core Three.js & Loaders -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
 
-    const camera = new THREE.PerspectiveCamera(
-      45, 
-      window.innerWidth / window.innerHeight, 
-      0.1, 
-      1000
-    );
-    camera.position.set(0, 2, 5); // ตำแหน่งเริ่มต้นของกล้อง
+    <!-- Controls & GUI -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/DragControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.18"></script>
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
+    <script>
+        // 1. Setup Renderer & Scene
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
 
-    // 2. เพิ่มการควบคุมกล้องด้วยเมาส์ (OrbitControls)
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+        const scene = new THREE.Scene();
 
-    // 3. เพิ่มแสงสว่างให้กับฉาก
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // แสงรอบทิศทาง
-    scene.add(ambientLight);
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, 3, 5);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 2); // แสงอาทิตย์/แสงส่องสว่าง
-    directionalLight.position.set(5, 10, 7.5);
-    directionalLight.castShadow = true;
-    scene.add(directionalLight);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
 
-    // 4. โหลดไฟล์โมเดล Shushi.glb
-    const loader = new GLTFLoader();
-    const loadingEl = document.getElementById('loading');
+        // 2. แสงสว่าง (Lighting)
+        const ambientLight = new THREE.AmbientLight(0x404040, 1);
+        scene.add(ambientLight);
 
-    loader.load(
-      'Shushi.glb', // ชื่อไฟล์ GLB ใน Repository
-      (gltf) => {
-        const model = gltf.scene;
-        
-        // จัดการให้โมเดลอยู่กึ่งกลาง
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight.position.set(10, 10, 10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
 
-        scene.add(model);
-        
-        // ซ่อนข้อความ Loading เมื่อโหลดเสร็จ
-        loadingEl.style.display = 'none';
-      },
-      (xhr) => {
-        // แสดงความคืบหน้าการโหลด (%)
-        if (xhr.total > 0) {
-          const percent = Math.round((xhr.loaded / xhr.total) * 100);
-          loadingEl.innerText = `กำลังโหลดโมเดล 3D... ${percent}%`;
+        // ตัวแทนแสง + GUI + Mouse Drag
+        const lightHelperMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffea00, wireframe: true })
+        );
+        lightHelperMesh.position.copy(directionalLight.position);
+        scene.add(lightHelperMesh);
+
+        const gui = new lil.GUI({ title: '⚙️ Controls' });
+
+        const lightFolder = gui.addFolder('PBR Controller');
+        lightFolder.add(directionalLight.position, 'x', -10, 10, 0.1).name('Position X').listen();
+        lightFolder.add(directionalLight.position, 'y', 0, 15, 0.1).name('Position Y').listen();
+        lightFolder.add(directionalLight.position, 'z', -10, 10, 0.1).name('Position Z').listen();
+        lightFolder.add(directionalLight, 'intensity', 0, 10, 0.1).name('Intensity');
+
+        const dragControls = new THREE.DragControls([lightHelperMesh], camera, renderer.domElement);
+        dragControls.addEventListener('dragstart', () => { controls.enabled = false; });
+        dragControls.addEventListener('drag', (event) => { directionalLight.position.copy(event.object.position); });
+        dragControls.addEventListener('dragend', () => { controls.enabled = true; });
+
+        // 3. EXR Environment / Skybox
+        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/sunset_fairway_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.UnsignedByteType)
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox;
+                texture.dispose();
+                pmremGenerator.dispose();
+            }, undefined, (error) => {
+                console.error('Unable to load EXR skybox:', error);
+            });
+
+        // 4. พื้น (Floor Plane)
+        const texFloor = new THREE.TextureLoader().load('https://sibsansuk.github.io/mossy_cobblestone_diff_1k.jpg');
+        const matFloor = new THREE.MeshStandardMaterial({ map: texFloor, side: THREE.DoubleSide });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), matFloor);
+        plane.rotation.x = -Math.PI / 2;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // 5. โหลดโมเดลผ่าน GLTFLoader + Draco
+        let currentModel = null;
+        let charFolder = null;
+
+        const loader = new THREE.GLTFLoader();
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        loader.setDRACOLoader(dracoLoader);
+
+        const status = document.getElementById('status');
+
+        // ฟังก์ชันแปลงลิงก์ GitHub ธรรมดาให้เป็น Raw Link อัตโนมัติ
+        function getRawUrl(url) {
+            let cleanUrl = url.trim();
+            if (cleanUrl.includes('github.com') && !cleanUrl.includes('raw.githubusercontent.com')) {
+                cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+            }
+            return cleanUrl;
         }
-      },
-      (error) => {
-        console.error('เกิดข้อผิดพลาดในการโหลดโมเดล:', error);
-        loadingEl.innerText = 'ไม่สามารถโหลดโมเดล 3D ได้';
-      }
-    );
 
-    // 5. ปรับขนาดการแสดงผลเมื่อย่อ/ขยายหน้าจอ
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+        function setupGUI(model) {
+            if (charFolder) charFolder.destroy();
+            charFolder = gui.addFolder('Character Material');
 
-    // 6. Loop การเรนเดอร์ภาพ
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
+            const materials = [];
+            model.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    if (Array.isArray(child.material)) materials.push(...child.material);
+                    else materials.push(child.material);
+                }
+            });
 
+            if (materials.length === 0) return;
+
+            const params = {
+                color: '#' + (materials[0].color ? materials[0].color.getHexString() : 'ffffff'),
+                metalness: materials[0].metalness !== undefined ? materials[0].metalness : 0,
+                roughness: materials[0].roughness !== undefined ? materials[0].roughness : 0.5
+            };
+
+            charFolder.addColor(params, 'color').name('Base Color').onChange((val) => {
+                materials.forEach(mat => { if (mat.color) mat.color.set(val); });
+            });
+            charFolder.add(params, 'metalness', 0, 1, 0.01).name('Metallic').onChange((val) => {
+                materials.forEach(mat => { if ('metalness' in mat) mat.metalness = val; });
+            });
+            charFolder.add(params, 'roughness', 0, 1, 0.01).name('Roughness').onChange((val) => {
+                materials.forEach(mat => { if ('roughness' in mat) mat.roughness = val; });
+            });
+        }
+
+        function loadModel(url) {
+            status.innerText = "กำลังโหลดโมเดล...";
+            
+            // ลบโมเดลเก่าออกจากฉากก่อน
+            if (currentModel) scene.remove(currentModel);
+
+            const rawUrl = getRawUrl(url);
+
+            loader.load(rawUrl, (gltf) => {
+                currentModel = gltf.scene;
+                currentModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                // ตั้งค่าให้อยู่บนพื้นพอดี
+                const box = new THREE.Box3().setFromObject(currentModel);
+                currentModel.position.set(0, -box.min.y, 0);
+
+                scene.add(currentModel);
+                setupGUI(currentModel);
+                status.innerText = "โหลดโมเดลสำเร็จ!";
+            }, (xhr) => {
+                if (xhr.total > 0) {
+                    status.innerText = `กำลังโหลด... ${Math.round((xhr.loaded / xhr.total) * 100)}%`;
+                }
+            }, (error) => {
+                console.error(error);
+                status.innerText = "เกิดข้อผิดพลาดในการโหลดโมเดล";
+            });
+        }
+
+        // กดปุ่มเพื่อโหลด
+        document.getElementById('load-btn').addEventListener('click', () => {
+            const url = document.getElementById('github-url-input').value;
+            if (url) loadModel(url);
+        });
+
+        // โหลดโมเดลเริ่มต้น
+        loadModel(document.getElementById('github-url-input').value);
+
+        // 6. Loop Render
+        function animate() {
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
+
 </html>
