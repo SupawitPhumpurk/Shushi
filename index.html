@@ -48,6 +48,7 @@
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         scene.add(ambientLight);
 
+        // ปรับทิศทางแสงให้อยู่ด้านหน้า เพื่อให้ป้ายสว่างชัดเจน
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
         directionalLight.position.set(0, 10, 10);
         scene.add(directionalLight);
@@ -61,7 +62,7 @@
         loader.load('https://supawitphumpurk.github.io/Shushi/Shushi.glb', (gltf) => {
             const model = gltf.scene;
 
-            // ไม่หมุนโมเดล (ใช้ทิศทางดั้งเดิมเพื่อแสดงฝั่งป้าย SHUSHIDAI)
+            // ตั้งค่าให้อยู่ในมุมดั้งเดิม
             model.rotation.y = 0;
 
             // คำนวณขนาดและจุดศูนย์กลาง
@@ -76,10 +77,11 @@
             const maxDim = Math.max(size.x, size.y, size.z);
             const fov = camera.fov * (Math.PI / 180);
             let cameraZ = Math.abs(maxDim / (2 * Math.tan(fov / 2)));
-            cameraZ *= 1.35; // เผื่อระยะขอบให้พอดีเฟรม
+            cameraZ *= 1.35; // เผื่อระยะขอบ
 
-            // สลับกล้องมาฝั่งป้าย SHUSHIDAI (มองจากด้านหลังเข้าหาศูนย์กลาง)
-            camera.position.set(0, 0, -cameraZ);
+            // --- [แก้ไขตำแหน่งกล้อง] ---
+            // นำกล้องมาไว้ที่แกน Z ฝั่งบวก (ฝั่งตรงข้ามกับโค้ดที่แล้ว) เพื่อให้เห็นหน้าร้านที่มีป้าย
+            camera.position.set(0, 0, cameraZ);
             controls.target.set(0, 0, 0);
             controls.update();
 
