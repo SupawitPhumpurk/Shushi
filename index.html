@@ -61,8 +61,8 @@
         loader.load('https://supawitphumpurk.github.io/Shushi/Shushi.glb', (gltf) => {
             const model = gltf.scene;
 
-            // --- [หมุนโมเดลไปทางขวา 90 องศา] ---
-            model.rotation.y = Math.PI / 2;
+            // --- [หมุนโมเดลไปทางซ้าย 90 องศา] ---
+            model.rotation.y = -Math.PI / 2;
 
             // คำนวณขนาดและจุดศูนย์กลางหลังจากหมุน
             const box = new THREE.Box3().setFromObject(model);
